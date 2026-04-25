@@ -1,0 +1,10 @@
+.next
+node_modules
+prisma/dev.db
+prisma/manual.db
+output
+.env
+tsconfig.tsbuildinfo
+.DS_Store
+.playwright-cli
+.superpowers
