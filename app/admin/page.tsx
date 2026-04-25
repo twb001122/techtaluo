@@ -27,6 +27,16 @@ const emptyCard: TarotCard = {
 
 const toList = (value: string) => value.split(/[,\n，、/]+/).map((item) => item.trim()).filter(Boolean);
 
+const readJsonResponse = async (response: Response) => {
+  const text = await response.text();
+  if (!text.trim()) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: text.slice(0, 300) };
+  }
+};
+
 type AiConfigDraft = {
   baseUrl: string;
   apiKey: string;
@@ -34,6 +44,8 @@ type AiConfigDraft = {
   systemPrompt: string;
   userPromptTemplate: string;
   enabled: boolean;
+  thinkingEnabled: boolean;
+  reasoningEffort: "high" | "max";
   hasApiKey: boolean;
   clearApiKey: boolean;
 };
@@ -44,6 +56,8 @@ export default function AdminPage() {
   const [selectedId, setSelectedId] = useState("");
   const [draft, setDraft] = useState<TarotCard>(emptyCard);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [cardBackUrl, setCardBackUrl] = useState("");
+  const [isUploadingCardBack, setIsUploadingCardBack] = useState(false);
   const [aiConfig, setAiConfig] = useState<AiConfigDraft>({
     baseUrl: "",
     apiKey: "",
@@ -51,6 +65,8 @@ export default function AdminPage() {
     systemPrompt: DEFAULT_SYSTEM_PROMPT,
     userPromptTemplate: DEFAULT_USER_PROMPT_TEMPLATE,
     enabled: false,
+    thinkingEnabled: true,
+    reasoningEffort: "max",
     hasApiKey: false,
     clearApiKey: false
   });
@@ -62,6 +78,21 @@ export default function AdminPage() {
   useEffect(() => {
     if (selected) setDraft(selected);
   }, [selected]);
+
+  useEffect(() => {
+    void loadCardBack({ silent: true });
+  }, []);
+
+  const loadCardBack = async (options: { silent?: boolean } = {}) => {
+    const response = await fetch("/api/card-back");
+    const payload = await response.json();
+    if (!response.ok) {
+      if (!options.silent) setMessage(payload.error ?? "读取卡背失败");
+      return;
+    }
+    setCardBackUrl(payload.imageUrl ?? "");
+    if (!options.silent) setMessage(payload.exists ? "已读取当前卡背" : "暂未配置卡背，将使用默认背面样式");
+  };
 
   const loadCards = async () => {
     const response = await fetch("/api/admin/cards", { headers: { "x-admin-key": adminKey } });
@@ -89,6 +120,8 @@ export default function AdminPage() {
       systemPrompt: payload.config.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
       userPromptTemplate: payload.config.userPromptTemplate ?? DEFAULT_USER_PROMPT_TEMPLATE,
       enabled: Boolean(payload.config.enabled),
+      thinkingEnabled: payload.config.thinkingEnabled ?? true,
+      reasoningEffort: payload.config.reasoningEffort === "high" ? "high" : "max",
       hasApiKey: Boolean(payload.config.hasApiKey),
       clearApiKey: false
     });
@@ -143,7 +176,31 @@ export default function AdminPage() {
 
     const nextDraft = { ...draft, imageUrl: payload.imageUrl };
     setDraft(nextDraft);
-    setMessage(`封面已上传：${payload.imageUrl}。点击保存即可写入卡牌。`);
+    setMessage(`${payload.message ?? "封面已上传"}，输出为 WebP：${payload.imageUrl}。点击保存即可写入卡牌。`);
+  };
+
+  const uploadCardBack = async (file: File | undefined) => {
+    if (!file) return;
+
+    setIsUploadingCardBack(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch("/api/admin/card-back", {
+      method: "POST",
+      headers: { "x-admin-key": adminKey },
+      body: formData
+    });
+    const payload = await response.json();
+    setIsUploadingCardBack(false);
+
+    if (!response.ok) {
+      setMessage(payload.error ?? "卡背上传失败");
+      return;
+    }
+
+    setCardBackUrl(payload.imageUrl);
+    setMessage(`${payload.message ?? "卡背已上传"}，抽卡页会自动使用这张卡背。`);
   };
 
   const seed = async () => {
@@ -159,7 +216,7 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
       body: JSON.stringify(aiConfig)
     });
-    const payload = await response.json();
+    const payload = await readJsonResponse(response);
     if (!response.ok) {
       setMessage(payload.error ?? "保存 AI 配置失败");
       return;
@@ -171,6 +228,8 @@ export default function AdminPage() {
       systemPrompt: payload.config.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
       userPromptTemplate: payload.config.userPromptTemplate ?? DEFAULT_USER_PROMPT_TEMPLATE,
       enabled: Boolean(payload.config.enabled),
+      thinkingEnabled: payload.config.thinkingEnabled ?? true,
+      reasoningEffort: payload.config.reasoningEffort === "high" ? "high" : "max",
       hasApiKey: Boolean(payload.config.hasApiKey),
       clearApiKey: false
     });
@@ -186,6 +245,31 @@ export default function AdminPage() {
           <button className="primary-button" onClick={loadCards}><Database size={16} />读取</button>
           <button className="ghost-button" onClick={loadAiConfig}><Bot size={16} />读取 AI 配置</button>
           <button className="ghost-button" onClick={seed}><RefreshCw size={16} />初始化默认牌</button>
+        </div>
+      </section>
+
+      <section className="admin-ai-panel admin-card-back-panel">
+        <div className="admin-form-head">
+          <div>
+            <span className="eyebrow">Deck Back</span>
+            <h2>卡背配置</h2>
+          </div>
+          <button className="ghost-button" type="button" onClick={() => void loadCardBack()}>
+            <RefreshCw size={16} />读取卡背
+          </button>
+        </div>
+        <div className="card-back-config">
+          <div className="card-back-preview">
+            {cardBackUrl ? <img src={cardBackUrl} alt="当前卡背预览" /> : <span>默认卡背</span>}
+          </div>
+          <div className="card-back-copy">
+            <p>上传后会压缩为 WebP，并固定保存为 <code>/cards/card-back.webp</code>。抽卡动画中的所有背面牌会自动使用这张图。</p>
+            <label className="upload-button">
+              <ImageUp size={16} />
+              {isUploadingCardBack ? "上传中" : "上传卡背"}
+              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void uploadCardBack(event.target.files?.[0])} disabled={isUploadingCardBack} />
+            </label>
+          </div>
         </div>
       </section>
 
@@ -207,7 +291,14 @@ export default function AdminPage() {
           <label>API Key
             <input type="password" value={aiConfig.apiKey} onChange={(event) => setAiConfig({ ...aiConfig, apiKey: event.target.value, clearApiKey: false })} placeholder={aiConfig.hasApiKey ? "已保存，留空则不修改" : "请输入 API Key"} />
           </label>
+          <label>思考强度
+            <select value={aiConfig.reasoningEffort} onChange={(event) => setAiConfig({ ...aiConfig, reasoningEffort: event.target.value === "high" ? "high" : "max" })}>
+              <option value="max">max</option>
+              <option value="high">high</option>
+            </select>
+          </label>
           <label className="check-line"><input type="checkbox" checked={aiConfig.enabled} onChange={(event) => setAiConfig({ ...aiConfig, enabled: event.target.checked })} />启用自定义 AI 解读</label>
+          <label className="check-line"><input type="checkbox" checked={aiConfig.thinkingEnabled} onChange={(event) => setAiConfig({ ...aiConfig, thinkingEnabled: event.target.checked })} />启用 thinking 思考模式</label>
           <label className="check-line"><input type="checkbox" checked={aiConfig.clearApiKey} onChange={(event) => setAiConfig({ ...aiConfig, clearApiKey: event.target.checked, apiKey: event.target.checked ? "" : aiConfig.apiKey })} />保存时清空 API Key</label>
           <label className="span-2 prompt-editor">System Prompt
             <textarea value={aiConfig.systemPrompt} onChange={(event) => setAiConfig({ ...aiConfig, systemPrompt: event.target.value })} />
@@ -221,7 +312,7 @@ export default function AdminPage() {
             <RefreshCw size={16} />恢复默认 Prompt
           </button>
         </div>
-        <p className="admin-hint">接口按 OpenAI-compatible 的 <code>/chat/completions</code> 调用。Prompt 模板支持 <code>{"{{question}}"}</code>、<code>{"{{cards}}"}</code>、<code>{"{{drawsJson}}"}</code> 占位符。请保留“只返回 JSON”的要求，并输出 <code>summary / cardReadings / analysis / insight / paywallRoasts</code> 这套结构，否则前台会自动回退到本地解读。</p>
+        <p className="admin-hint">接口按 OpenAI-compatible 的 <code>/chat/completions</code> 调用，并会附加 <code>thinking: {"{\"type\":\"enabled/disabled\"}"}</code> 与 <code>reasoning_effort: "high/max"</code>。Prompt 模板支持 <code>{"{{question}}"}</code>、<code>{"{{cards}}"}</code>、<code>{"{{drawsJson}}"}</code> 占位符。请保留“只返回 JSON”的要求，并输出 <code>summary / cardReadings / analysis / insight / paywallRoasts</code> 这套结构，否则前台会自动回退到本地解读。</p>
       </section>
 
       <section className="admin-layout">

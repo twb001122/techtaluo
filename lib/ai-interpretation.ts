@@ -7,6 +7,8 @@ type AiConfig = {
   systemPrompt?: string;
   userPromptTemplate?: string;
   enabled: boolean;
+  thinkingEnabled?: boolean;
+  reasoningEffort?: string;
 };
 
 type LegacyInterpretation = {
@@ -49,6 +51,10 @@ export const normalizeChatCompletionsUrl = (baseUrl: string) => {
   const trimmed = baseUrl.trim().replace(/\/+$/, "");
   if (trimmed.endsWith("/chat/completions")) return trimmed;
   return `${trimmed}/chat/completions`;
+};
+
+export const normalizeAiReasoningEffort = (value: unknown): "high" | "max" => {
+  return value === "high" ? "high" : "max";
 };
 
 export const sanitizeModelContent = (content: string) => {
@@ -221,6 +227,27 @@ export const renderPromptTemplate = (template: string, question: string, draws: 
     .replaceAll("{{drawsJson}}", JSON.stringify(draws, null, 2));
 };
 
+export const buildConfiguredAiRequestBody = (config: AiConfig, question: string, draws: CardDraw[]) => {
+  return {
+    model: config.modelId,
+    temperature: 0.8,
+    thinking: {
+      type: config.thinkingEnabled === false ? "disabled" : "enabled"
+    },
+    reasoning_effort: normalizeAiReasoningEffort(config.reasoningEffort),
+    messages: [
+      {
+        role: "system",
+        content: config.systemPrompt ?? ""
+      },
+      {
+        role: "user",
+        content: renderPromptTemplate(config.userPromptTemplate ?? "", question, draws)
+      }
+    ]
+  };
+};
+
 export async function attemptConfiguredAiInterpretation(
   question: string,
   draws: CardDraw[],
@@ -265,20 +292,7 @@ export async function attemptConfiguredAiInterpretation(
         "Content-Type": "application/json",
         Authorization: `Bearer ${config.apiKey}`
       },
-      body: JSON.stringify({
-        model: config.modelId,
-        temperature: 0.8,
-        messages: [
-          {
-            role: "system",
-            content: config.systemPrompt ?? ""
-          },
-          {
-            role: "user",
-            content: renderPromptTemplate(config.userPromptTemplate ?? "", question, draws)
-          }
-        ]
-      })
+      body: JSON.stringify(buildConfiguredAiRequestBody(config, question, draws))
     });
 
     if (!response.ok) {
@@ -339,7 +353,9 @@ export async function attemptConfiguredAiInterpretation(
 
     console.info("[ai-interpretation] Configured AI interpretation accepted", {
       url: requestUrl,
-      model: config.modelId
+      model: config.modelId,
+      thinking: config.thinkingEnabled === false ? "disabled" : "enabled",
+      reasoningEffort: normalizeAiReasoningEffort(config.reasoningEffort)
     });
     return {
       interpretation: coerced,

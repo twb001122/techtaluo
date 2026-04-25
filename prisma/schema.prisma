@@ -53,6 +53,8 @@ model AiConfig {
   systemPrompt       String   @default("")
   userPromptTemplate String   @default("")
   enabled            Boolean  @default(false)
+  thinkingEnabled    Boolean  @default(true)
+  reasoningEffort    String   @default("max")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }

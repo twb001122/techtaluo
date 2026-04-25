@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { BookOpen, Search, Shuffle, Wand2 } from "lucide-react";
 import { buildArchiveGridModel } from "@/lib/card-layout";
 import { buildHomepageModel } from "@/lib/homepage";
@@ -19,6 +19,8 @@ export default function TechTarotApp({ initialCards }: Props) {
   const [tag, setTag] = useState("all");
   const [sort, setSort] = useState("order");
   const [selected, setSelected] = useState<TarotCard | null>(null);
+  const [cardBackUrl, setCardBackUrl] = useState("");
+  const [heroShowcaseCard, setHeroShowcaseCard] = useState<TarotCard | null>(null);
 
   const allTags = useMemo(() => Array.from(new Set(initialCards.flatMap((card) => card.tags))).sort(), [initialCards]);
   const homepage = useMemo(() => buildHomepageModel(initialCards), [initialCards]);
@@ -39,6 +41,29 @@ export default function TechTarotApp({ initialCards }: Props) {
     });
   }, [group, initialCards, query, sort, tag]);
   const libraryArchive = useMemo(() => buildLibraryArchiveModel(initialCards, filteredCards), [filteredCards, initialCards]);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/card-back")
+      .then((response) => response.json())
+      .then((payload) => {
+        if (isMounted && payload.exists && payload.imageUrl) setCardBackUrl(payload.imageUrl);
+      })
+      .catch(() => {
+        if (isMounted) setCardBackUrl("");
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const pool = initialCards.filter((card) => card.isPublished);
+    const coverCards = pool.filter((card) => Boolean(card.imageUrl));
+    const candidates = coverCards.length ? coverCards : pool;
+    setHeroShowcaseCard(candidates[Math.floor(Math.random() * candidates.length)] ?? homepage.featuredCard);
+  }, [homepage.featuredCard, initialCards]);
 
   const randomCard = () => {
     const pool = filteredCards.length ? filteredCards : initialCards;
@@ -65,8 +90,6 @@ export default function TechTarotApp({ initialCards }: Props) {
       </nav>
 
       <section id="top" className="hero-section">
-        <div className="hero-magic hero-magic-one" aria-hidden="true" />
-        <div className="hero-magic hero-magic-two" aria-hidden="true" />
         <div className="star-track star-track-one" aria-hidden="true" />
         <div className="star-track star-track-two" aria-hidden="true" />
         <div className="hero-copy hero-shell">
@@ -89,17 +112,31 @@ export default function TechTarotApp({ initialCards }: Props) {
             <p>它不是算命工具，更像一个把当代人的精神状态翻译成卡牌隐喻的幽默产品。</p>
           </div>
         </div>
-        <div className="hero-visual">
-          <div className="hero-visual-panel">
-            <img src="/ref-assets/tech-tarot-hero.png" alt="炼金复古科技塔罗主视觉" />
-            <div className="hero-visual-rings" aria-hidden="true" />
-            <div className="hero-visual-caption">
-              <span>炼金复古科技风</span>
-              <span>主视觉档案</span>
+        <div className="hero-visual" aria-label="科技塔罗牌组展示">
+          <div
+            className={`hero-card-theater ${cardBackUrl ? "has-card-back-image" : ""}`}
+            style={{ "--card-back-image": cardBackUrl ? `url(${cardBackUrl})` : undefined } as CSSProperties}
+          >
+            <div className="hero-card-fan" aria-hidden="true">
+              {[
+                { x: -198, y: 88, r: -34 },
+                { x: -132, y: 38, r: -23 },
+                { x: -66, y: 10, r: -11 },
+                { x: 0, y: 0, r: 0 },
+                { x: 66, y: 10, r: 11 },
+                { x: 132, y: 38, r: 23 },
+                { x: 198, y: 88, r: 34 }
+              ].map((card, index) => (
+                <span
+                  key={index}
+                  className={`hero-fan-card hero-fan-card-${index + 1}`}
+                  style={{ "--fan-x": `${card.x}px`, "--fan-y": `${card.y}px`, "--fan-r": `${card.r}deg` } as CSSProperties}
+                />
+              ))}
             </div>
-          </div>
-          <div className="hero-card-float">
-            <TechCard card={homepage.featuredCard} compact />
+            <div className="hero-card-float">
+              <TechCard card={heroShowcaseCard ?? homepage.featuredCard} compact />
+            </div>
           </div>
         </div>
       </section>

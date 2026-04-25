@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS "AiConfig" (
     "systemPrompt" TEXT NOT NULL DEFAULT '',
     "userPromptTemplate" TEXT NOT NULL DEFAULT '',
     "enabled" BOOLEAN NOT NULL DEFAULT false,
+    "thinkingEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "reasoningEffort" TEXT NOT NULL DEFAULT 'max',
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL
 );

@@ -1,0 +1,2 @@
+ALTER TABLE "AiConfig" ADD COLUMN "thinkingEnabled" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "AiConfig" ADD COLUMN "reasoningEffort" TEXT NOT NULL DEFAULT 'max';

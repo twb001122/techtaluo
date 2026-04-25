@@ -8,6 +8,8 @@ export type AiConfigInput = {
   systemPrompt?: string;
   userPromptTemplate?: string;
   enabled: boolean;
+  thinkingEnabled?: boolean;
+  reasoningEffort?: string;
   clearApiKey?: boolean;
 };
 
@@ -17,7 +19,13 @@ export type SafeAiConfig = {
   systemPrompt: string;
   userPromptTemplate: string;
   enabled: boolean;
+  thinkingEnabled: boolean;
+  reasoningEffort: "high" | "max";
   hasApiKey: boolean;
+};
+
+export const normalizeReasoningEffort = (value: unknown): "high" | "max" => {
+  return value === "high" ? "high" : "max";
 };
 
 export async function getAiConfig() {
@@ -35,6 +43,8 @@ export function toSafeAiConfig(config: Awaited<ReturnType<typeof getAiConfig>>):
     systemPrompt: config?.systemPrompt || DEFAULT_SYSTEM_PROMPT,
     userPromptTemplate: config?.userPromptTemplate || DEFAULT_USER_PROMPT_TEMPLATE,
     enabled: config?.enabled ?? false,
+    thinkingEnabled: config?.thinkingEnabled ?? true,
+    reasoningEffort: normalizeReasoningEffort(config?.reasoningEffort),
     hasApiKey: Boolean(config?.apiKey)
   };
 }
@@ -42,6 +52,7 @@ export function toSafeAiConfig(config: Awaited<ReturnType<typeof getAiConfig>>):
 export async function saveAiConfig(input: AiConfigInput): Promise<SafeAiConfig> {
   const existing = await getAiConfig();
   const apiKey = input.clearApiKey ? "" : input.apiKey?.trim() || existing?.apiKey || "";
+  const reasoningEffort = normalizeReasoningEffort(input.reasoningEffort);
   const saved = await prisma.aiConfig.upsert({
     where: { id: "default" },
     update: {
@@ -50,7 +61,9 @@ export async function saveAiConfig(input: AiConfigInput): Promise<SafeAiConfig> 
       modelId: input.modelId.trim(),
       systemPrompt: input.systemPrompt?.trim() || DEFAULT_SYSTEM_PROMPT,
       userPromptTemplate: input.userPromptTemplate?.trim() || DEFAULT_USER_PROMPT_TEMPLATE,
-      enabled: input.enabled
+      enabled: input.enabled,
+      thinkingEnabled: input.thinkingEnabled ?? true,
+      reasoningEffort
     },
     create: {
       id: "default",
@@ -59,7 +72,9 @@ export async function saveAiConfig(input: AiConfigInput): Promise<SafeAiConfig> 
       modelId: input.modelId.trim(),
       systemPrompt: input.systemPrompt?.trim() || DEFAULT_SYSTEM_PROMPT,
       userPromptTemplate: input.userPromptTemplate?.trim() || DEFAULT_USER_PROMPT_TEMPLATE,
-      enabled: input.enabled
+      enabled: input.enabled,
+      thinkingEnabled: input.thinkingEnabled ?? true,
+      reasoningEffort
     }
   });
 

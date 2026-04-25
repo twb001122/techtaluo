@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coerceInterpretation, extractJson, normalizeChatCompletionsUrl, renderPromptTemplate, sanitizeModelContent } from "./ai-interpretation";
+import { buildConfiguredAiRequestBody, coerceInterpretation, extractJson, normalizeChatCompletionsUrl, renderPromptTemplate, sanitizeModelContent } from "./ai-interpretation";
 import { initialCards } from "./cards";
 import { buildReadingFlowModel } from "./reading-flow";
 
@@ -111,6 +111,53 @@ describe("AI interpretation helpers", () => {
     expect(prompt).toContain("问题=要不要辞职？");
     expect(prompt).toContain("现状：体验版用户");
     expect(prompt).toContain('"position": "现状"');
+  });
+
+  it("adds OpenAI-compatible thinking controls to configured AI requests", () => {
+    const draws = [
+      { position: "现状" as const, orientation: "upright" as const, card: initialCards[0] },
+      { position: "阻力" as const, orientation: "reversed" as const, card: initialCards[1] },
+      { position: "建议" as const, orientation: "upright" as const, card: initialCards[2] }
+    ];
+
+    expect(
+      buildConfiguredAiRequestBody(
+        {
+          baseUrl: "https://api.example.com/v1",
+          apiKey: "key",
+          modelId: "model",
+          enabled: true,
+          thinkingEnabled: true,
+          reasoningEffort: "max",
+          systemPrompt: "system",
+          userPromptTemplate: "问题={{question}}"
+        },
+        "要不要上线？",
+        draws
+      )
+    ).toMatchObject({
+      model: "model",
+      thinking: { type: "enabled" },
+      reasoning_effort: "max"
+    });
+
+    expect(
+      buildConfiguredAiRequestBody(
+        {
+          baseUrl: "https://api.example.com/v1",
+          apiKey: "key",
+          modelId: "model",
+          enabled: true,
+          thinkingEnabled: false,
+          reasoningEffort: "high"
+        },
+        "要不要上线？",
+        draws
+      )
+    ).toMatchObject({
+      thinking: { type: "disabled" },
+      reasoning_effort: "high"
+    });
   });
 
   it("slows the ritual reveal rhythm to cover AI latency more generously", () => {

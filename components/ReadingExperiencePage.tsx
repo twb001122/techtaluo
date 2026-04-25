@@ -2,20 +2,21 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, LockKeyhole, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Eye, LockKeyhole, Sparkles, X } from "lucide-react";
 import CardDetailModal from "@/components/CardDetailModal";
 import TechCard from "@/components/TechCard";
 import { buildReadingFlowModel } from "@/lib/reading-flow";
 import type { CardDraw, ReadingInterpretation, TarotCard } from "@/lib/types";
 
 type Props = {
-  cardCount: number;
+  cards: TarotCard[];
 };
 
-type RitualPhase = "intro" | "asking" | "submitting" | "animating" | "waiting" | "resolved" | "paywall" | "error";
+type RitualPhase = "intro" | "asking" | "submitting" | "animating" | "waiting" | "ready" | "resolved" | "paywall" | "error";
 
-export default function ReadingExperiencePage({ cardCount }: Props) {
+export default function ReadingExperiencePage({ cards }: Props) {
   const flow = buildReadingFlowModel();
+  const cardCount = cards.length;
   const [phase, setPhase] = useState<RitualPhase>("intro");
   const [draftQuestion, setDraftQuestion] = useState("");
   const [question, setQuestion] = useState("");
@@ -27,6 +28,7 @@ export default function ReadingExperiencePage({ cardCount }: Props) {
   const [errorMessage, setErrorMessage] = useState("");
   const [paywallChoice, setPaywallChoice] = useState<"paid" | "unpaid" | null>(null);
   const [selectedCard, setSelectedCard] = useState<TarotCard | null>(null);
+  const [cardBackUrl, setCardBackUrl] = useState("");
 
   const runIdRef = useRef(0);
   const revealCompleteRef = useRef(false);
@@ -39,6 +41,22 @@ export default function ReadingExperiencePage({ cardCount }: Props) {
   };
 
   useEffect(() => () => clearTimers(), []);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/card-back")
+      .then((response) => response.json())
+      .then((payload) => {
+        if (isMounted && payload.exists && payload.imageUrl) setCardBackUrl(payload.imageUrl);
+      })
+      .catch(() => {
+        if (isMounted) setCardBackUrl("");
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const startQuestion = () => {
     setDraftQuestion(question);
@@ -110,7 +128,7 @@ export default function ReadingExperiencePage({ cardCount }: Props) {
         window.setTimeout(() => {
           if (runIdRef.current !== runId) return;
           revealCompleteRef.current = true;
-          setPhase(interpretationReadyRef.current ? "resolved" : "waiting");
+          setPhase(interpretationReadyRef.current ? "ready" : "waiting");
         }, thirdDelay + flow.reportRevealOffsetMs)
       ];
 
@@ -148,7 +166,7 @@ export default function ReadingExperiencePage({ cardCount }: Props) {
       interpretationReadyRef.current = true;
 
       if (revealCompleteRef.current) {
-        setPhase("resolved");
+        setPhase("ready");
       }
     } catch (error) {
       if (runIdRef.current !== runId) return;
@@ -167,7 +185,7 @@ export default function ReadingExperiencePage({ cardCount }: Props) {
     setPhase("resolved");
   };
 
-  const isAnimatingStage = phase === "animating" || phase === "waiting" || phase === "resolved" || phase === "paywall";
+  const isAnimatingStage = phase === "animating" || phase === "waiting" || phase === "ready" || phase === "resolved" || phase === "paywall";
   const isReporting = phase === "resolved" || phase === "paywall";
 
   return (
@@ -192,6 +210,25 @@ export default function ReadingExperiencePage({ cardCount }: Props) {
       </nav>
 
       <section className={`reading-ritual-page phase-${phase}`}>
+        <div
+          className={`reading-idle-orbit ${cardBackUrl ? "has-card-back-image" : ""}`}
+          style={{ "--card-back-image": cardBackUrl ? `url(${cardBackUrl})` : undefined } as CSSProperties}
+          aria-hidden="true"
+        >
+          {Array.from({ length: 24 }, (_, index) => {
+            const isFront = index % 4 === 1 || index % 7 === 3;
+            const card = cards.length ? cards[(index * 7) % cards.length] : null;
+            return (
+              <div
+                key={index}
+                className={`idle-floating-card idle-floating-card-${index + 1} ${isFront && card ? "is-front" : ""}`}
+                style={{ "--float-duration": `${18 + (index % 7) * 1.4}s`, "--float-delay": `${index * -1.1}s` } as CSSProperties}
+              >
+                {isFront && card ? <TechCard card={card} compact /> : null}
+              </div>
+            );
+          })}
+        </div>
         <div className={`reading-entry-panel ${isAnimatingStage || phase === "error" ? "is-hidden" : ""}`}>
           <span className="eyebrow">Modern Spirit Ritual</span>
           <h1>科技塔罗牌</h1>
@@ -206,7 +243,11 @@ export default function ReadingExperiencePage({ cardCount }: Props) {
         <div className={`reading-ritual-board ${isAnimatingStage ? "is-active" : ""} ${isReporting ? "is-reporting" : ""}`}>
           <div className={`ritual-back-row ${isAnimatingStage ? "is-active" : ""}`}>
             {Array.from({ length: flow.deckBackCount }, (_, slot) => (
-              <span key={slot} className="ritual-back-card" style={{ "--slot": slot } as CSSProperties} />
+              <span
+                key={slot}
+                className={`ritual-back-card ${cardBackUrl ? "has-card-back-image" : ""}`}
+                style={{ "--slot": slot, "--card-back-image": cardBackUrl ? `url(${cardBackUrl})` : undefined } as CSSProperties}
+              />
             ))}
           </div>
 
@@ -254,6 +295,21 @@ export default function ReadingExperiencePage({ cardCount }: Props) {
               </div>
             </div>
           </div>
+        ) : null}
+
+        {phase === "ready" && interpretation ? (
+          <section className="reading-report-ready" aria-live="polite">
+            <span className="reading-report-ready-seal" aria-hidden="true">✶</span>
+            <div>
+              <span className="eyebrow">Report Sealed</span>
+              <h2>报告已经写好，先别急着揭。</h2>
+              <p>你可以继续讲三张牌、点卡牌看详情，等现场聊够了再打开完整报告。</p>
+            </div>
+            <button className="primary-button" type="button" onClick={() => setPhase("resolved")}>
+              <Eye size={18} />
+              查看报告
+            </button>
+          </section>
         ) : null}
 
         {interpretation && isReporting ? (
