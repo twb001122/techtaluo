@@ -1888,9 +1888,9 @@ textarea {
   top: 50%;
   z-index: 2;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(18px, 3vw, 28px);
-  width: min(1040px, 100%);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(24px, 4vw, 42px);
+  width: min(760px, 100%);
   pointer-events: none;
   transform: translate(-50%, -50%);
   transition: transform 620ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -2023,12 +2023,54 @@ textarea {
   box-shadow: 0 20px 44px rgba(3, 7, 12, 0.24);
 }
 
+.reading-report-shell {
+  display: grid;
+  gap: 0;
+  width: min(1120px, 100%);
+  margin: 0 auto;
+}
+
+.reading-report-floating-title {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 12px;
+  width: min(940px, calc(100% - 32px));
+  margin: 0 auto 18px;
+  padding: 0 clamp(6px, 1vw, 12px);
+  color: #f4ead7;
+}
+
+.reading-report-floating-title::after {
+  content: "";
+  justify-self: start;
+  width: min(220px, 42%);
+  height: 1px;
+  background: linear-gradient(90deg, rgba(245, 214, 151, 0.62), rgba(245, 214, 151, 0));
+}
+
+.reading-report-floating-title .eyebrow {
+  color: rgba(245, 214, 151, 0.78);
+}
+
+.reading-report-floating-title h2 {
+  max-width: 16em;
+  color: #f4ead7;
+  font-family: var(--font-display);
+  font-size: clamp(30px, 4.2vw, 58px);
+  font-weight: 720;
+  line-height: 1.18;
+  letter-spacing: 0.01em;
+  text-wrap: pretty;
+  text-shadow: 0 16px 34px rgba(3, 7, 12, 0.38);
+}
+
 .reading-report-panel {
   position: relative;
   display: grid;
   isolation: isolate;
   gap: 20px;
-  width: min(1120px, 100%);
+  width: 100%;
   margin: 0 auto;
   padding: clamp(34px, 4.5vw, 56px);
   overflow: hidden;
@@ -2079,10 +2121,11 @@ textarea {
 }
 
 .reading-report-head {
-  display: grid;
-  gap: 12px;
-  padding: 4px 8px 18px;
-  border-bottom: 2px double rgba(61, 42, 24, 0.2);
+  display: flex;
+  justify-content: flex-end;
+  min-height: 0;
+  margin-top: -22px;
+  padding: 0 4px;
 }
 
 .reading-report-title {
@@ -2187,28 +2230,29 @@ textarea {
 }
 
 .reading-report-summary p {
-  color: #2b1f14;
-  font-family: var(--font-display);
-  font-weight: 760;
-  font-size: clamp(26px, 3vw, 38px);
-  line-height: 1.48;
+  max-width: 82ch;
+  color: rgba(45, 34, 23, 0.78);
+  font-size: clamp(16px, 1.45vw, 19px);
+  font-weight: 650;
+  line-height: 1.86;
 }
 
 .reading-report-summary {
-  padding: clamp(24px, 4vw, 34px);
+  padding: clamp(18px, 3vw, 24px);
   background:
-    radial-gradient(circle at 92% 50%, rgba(112, 31, 24, 0.07), transparent 14rem),
-    radial-gradient(circle at 0 0, rgba(27, 74, 96, 0.06), transparent 12rem),
-    rgba(248, 240, 218, 0.6);
+    linear-gradient(90deg, rgba(112, 31, 24, 0.06), transparent 34%),
+    rgba(247, 238, 213, 0.38);
 }
 
 .reading-report-summary::after {
-  content: "☉";
+  content: "!";
   position: absolute;
-  right: clamp(18px, 3vw, 34px);
+  right: clamp(16px, 3vw, 28px);
   top: 50%;
-  color: rgba(61, 42, 24, 0.08);
-  font-size: clamp(72px, 10vw, 124px);
+  color: rgba(112, 31, 24, 0.12);
+  font-family: var(--font-display);
+  font-size: clamp(42px, 6vw, 78px);
+  font-weight: 800;
   line-height: 1;
   transform: translateY(-50%);
   pointer-events: none;
@@ -2216,8 +2260,8 @@ textarea {
 
 .reading-report-cards {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(16px, 2.2vw, 24px);
 }
 
 .reading-report-card-head {
@@ -2269,8 +2313,8 @@ textarea {
 
 .reading-report-lower {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.8fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.55fr) minmax(260px, 0.55fr);
+  gap: clamp(16px, 2vw, 24px);
   align-items: start;
 }
 
@@ -2281,14 +2325,34 @@ textarea {
 
 .reading-report-analysis {
   min-height: 100%;
+  padding: clamp(24px, 3.2vw, 34px);
+  background:
+    radial-gradient(circle at 100% 0, rgba(27, 74, 96, 0.07), transparent 15rem),
+    radial-gradient(circle at 0 100%, rgba(112, 31, 24, 0.06), transparent 14rem),
+    rgba(248, 240, 218, 0.66);
+}
+
+.reading-report-analysis p {
+  color: #2b1f14;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 2.1vw, 30px);
+  font-weight: 690;
+  line-height: 1.7;
 }
 
 .reading-report-question-card p {
   color: #2d2217;
   font-family: var(--font-display);
   font-weight: 720;
-  font-size: 22px;
+  font-size: clamp(22px, 2.5vw, 34px);
   line-height: 1.6;
+}
+
+.reading-report-question-card {
+  padding: clamp(20px, 3vw, 30px);
+  background:
+    radial-gradient(circle at 92% 50%, rgba(82, 48, 21, 0.06), transparent 16rem),
+    rgba(248, 240, 218, 0.62);
 }
 
 .reading-report-lockup {
@@ -3105,11 +3169,15 @@ textarea {
   }
 
   .reading-report-summary p {
-    font-size: clamp(22px, 7vw, 30px);
+    font-size: 16px;
   }
 
   .reading-report-question-card p {
-    font-size: 20px;
+    font-size: 22px;
+  }
+
+  .reading-report-analysis p {
+    font-size: 22px;
   }
 
   .reading-question-actions,

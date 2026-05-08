@@ -98,7 +98,7 @@ export default function TechTarotApp({ initialCards }: Props) {
             <h1>科技塔罗牌</h1>
             <p>画得像命运神谕，读出来却像你的精神状态事故报告。这里没有恋人、死神、太阳，只有服务器宕机、信息茧房、系统更新提醒和产品经理。</p>
             <div className="hero-actions">
-              <a className="primary-button" href="/reading"><Wand2 size={18} />开始抽三张</a>
+              <a className="primary-button" href="/reading"><Wand2 size={18} />开始抽两张</a>
               <a className="ghost-button" href="#library"><BookOpen size={18} />浏览牌库</a>
             </div>
             <div className="hero-signals" aria-label="首页能力摘要">

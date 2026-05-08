@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { initialCards } from "./cards";
-import { drawThreeCards, interpretReadingFallback } from "./readings";
+import { drawReadingCards, interpretReadingFallback } from "./readings";
 
 describe("initial card data", () => {
   it("contains the 40-card tech tarot deck with expected groups", () => {
@@ -26,23 +26,24 @@ describe("initial card data", () => {
 });
 
 describe("readings", () => {
-  it("draws three unique cards with a stable orientation for each card", () => {
-    const cards = drawThreeCards(initialCards, () => 0.1);
+  it("draws two unique cards with a stable orientation for each card", () => {
+    const cards = drawReadingCards(initialCards, () => 0.1);
 
-    expect(cards).toHaveLength(3);
-    expect(new Set(cards.map((draw) => draw.card.id)).size).toBe(3);
+    expect(cards).toHaveLength(2);
+    expect(new Set(cards.map((draw) => draw.card.id)).size).toBe(2);
     expect(cards.every((draw) => draw.orientation === "upright")).toBe(true);
   });
 
   it("builds a readable fallback interpretation from the question and cards", () => {
-    const draws = drawThreeCards(initialCards, () => 0.7);
+    const draws = drawReadingCards(initialCards, () => 0.7);
     const result = interpretReadingFallback("我该不该换工作？", draws);
 
     expect(result.summary).toContain("我该不该换工作");
-    expect(result.cardReadings).toHaveLength(3);
-    expect(result.cardReadings[0]?.position).toBe("现状");
+    expect(result.cardReadings).toHaveLength(2);
+    expect(result.cardReadings[0]?.position).toBe("症状");
+    expect(result.cardReadings[1]?.position).toBe("解法");
     expect(result.analysis).toContain("我该不该换工作");
-    expect(result.insight).toContain("建议");
+    expect(result.insight).toContain("解法");
     expect(result.paywallRoasts.paid).toContain("1块钱");
     expect(result.paywallRoasts.unpaid).toContain("1块钱");
   });

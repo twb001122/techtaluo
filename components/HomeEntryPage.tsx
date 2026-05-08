@@ -26,7 +26,7 @@ export default function HomeEntryPage({ cardCount }: Props) {
       <section className="home-entry-hero">
         <span className="eyebrow">Cyber Divination / Modern Mood Deck</span>
         <h1>科技塔罗牌</h1>
-        <p>这是一套给现代人精神状态做赛博占卜的牌。你负责提问，系统负责随机抽三张，然后让 AI 一本正经地瞎洞察你的人生。</p>
+        <p>这是一套给现代人精神状态做赛博占卜的牌。你负责提问，系统负责随机抽两张，然后让 AI 一本正经地瞎洞察你的人生。</p>
         <a className="primary-button" href="/reading">
           <Sparkles size={18} />
           开始抽卡

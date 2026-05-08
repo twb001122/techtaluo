@@ -312,7 +312,7 @@ export default function AdminPage() {
             <RefreshCw size={16} />恢复默认 Prompt
           </button>
         </div>
-        <p className="admin-hint">接口按 OpenAI-compatible 的 <code>/chat/completions</code> 调用，并会附加 <code>thinking: {"{\"type\":\"enabled/disabled\"}"}</code> 与 <code>reasoning_effort: "high/max"</code>。Prompt 模板支持 <code>{"{{question}}"}</code>、<code>{"{{cards}}"}</code>、<code>{"{{drawsJson}}"}</code> 占位符。请保留“只返回 JSON”的要求，并输出 <code>summary / cardReadings / analysis / insight / paywallRoasts</code> 这套结构，否则前台会自动回退到本地解读。</p>
+        <p className="admin-hint">接口按 OpenAI-compatible 的 <code>/chat/completions</code> 调用，并会附加 <code>thinking: {"{\"type\":\"enabled/disabled\"}"}</code>；仅在 thinking 开启时发送 <code>reasoning_effort: "high/max"</code>。Prompt 模板支持 <code>{"{{question}}"}</code>、<code>{"{{cards}}"}</code>、<code>{"{{drawsJson}}"}</code> 占位符。请保留“只返回 JSON”的要求，并输出 <code>summary / cardReadings / analysis / insight / paywallRoasts</code> 这套结构，否则前台会自动回退到本地解读。</p>
       </section>
 
       <section className="admin-layout">

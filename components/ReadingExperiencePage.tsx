@@ -102,7 +102,7 @@ export default function ReadingExperiencePage({ cards }: Props) {
       });
       const drawPayload = await drawResponse.json();
 
-      if (!drawResponse.ok || !Array.isArray(drawPayload.draws) || drawPayload.draws.length !== 3) {
+      if (!drawResponse.ok || !Array.isArray(drawPayload.draws) || drawPayload.draws.length !== flow.faceCardCount) {
         throw new Error(drawPayload.error ?? "抽牌失败");
       }
 
@@ -111,7 +111,7 @@ export default function ReadingExperiencePage({ cards }: Props) {
       setDraws(drawPayload.draws);
       setReadingId(drawPayload.readingId ?? null);
 
-      const [firstDelay, secondDelay, thirdDelay] = flow.faceRevealDelaysMs;
+      const [firstDelay, secondDelay] = flow.faceRevealDelaysMs;
       const revealTimers = [
         window.setTimeout(() => {
           if (runIdRef.current !== runId) return;
@@ -123,13 +123,9 @@ export default function ReadingExperiencePage({ cards }: Props) {
         }, secondDelay),
         window.setTimeout(() => {
           if (runIdRef.current !== runId) return;
-          setRevealCount(3);
-        }, thirdDelay),
-        window.setTimeout(() => {
-          if (runIdRef.current !== runId) return;
           revealCompleteRef.current = true;
           setPhase(interpretationReadyRef.current ? "ready" : "waiting");
-        }, thirdDelay + flow.reportRevealOffsetMs)
+        }, secondDelay + flow.reportRevealOffsetMs)
       ];
 
       timeoutsRef.current.push(...revealTimers);
@@ -196,7 +192,7 @@ export default function ReadingExperiencePage({ cards }: Props) {
             <span className="brand-mark">✶</span>
             <span>科技塔罗牌<small>READING</small></span>
           </a>
-          <span className="nav-whisper">三张牌仪式页</span>
+          <span className="nav-whisper">两张牌仪式页</span>
         </div>
         <div className="nav-links">
           <a href="/">首页</a>
@@ -232,12 +228,12 @@ export default function ReadingExperiencePage({ cards }: Props) {
         <div className={`reading-entry-panel ${isAnimatingStage || phase === "error" ? "is-hidden" : ""}`}>
           <span className="eyebrow">Modern Spirit Ritual</span>
           <h1>科技塔罗牌</h1>
-          <p>输入问题，点下按钮，剩下的交给三张牌和一个多少有点缺德的 AI。它会在动画里偷偷完成抽牌和瞎洞察。</p>
+          <p>输入问题，点下按钮，系统会抽出两张牌：一张看症状，一张看解法。AI 会在动画里偷偷完成瞎洞察。</p>
           <button className="primary-button" type="button" onClick={startQuestion}>
             <Sparkles size={18} />
             开始抽卡
           </button>
-          <small className="reading-entry-note">{cardCount} 张牌样本已待命，系统默认按现状 / 阻力 / 建议抽出三张。</small>
+          <small className="reading-entry-note">{cardCount} 张牌样本已待命，系统默认按症状 / 解法抽出两张。</small>
         </div>
 
         <div className={`reading-ritual-board ${isAnimatingStage ? "is-active" : ""} ${isReporting ? "is-reporting" : ""}`}>
@@ -271,7 +267,7 @@ export default function ReadingExperiencePage({ cards }: Props) {
           </div>
         </div>
 
-        {(phase === "waiting" || (phase === "animating" && revealCount === 3 && !interpretation)) && !interpretation ? (
+        {(phase === "waiting" || (phase === "animating" && revealCount === flow.faceCardCount && !interpretation)) && !interpretation ? (
           <div className="reading-loading reading-loading-page" role="status" aria-live="polite">
             <div className="reading-loading-orb" />
             <div className="reading-loading-viewport">
@@ -303,7 +299,7 @@ export default function ReadingExperiencePage({ cards }: Props) {
             <div>
               <span className="eyebrow">Report Sealed</span>
               <h2>报告已经写好，先别急着揭。</h2>
-              <p>你可以继续讲三张牌、点卡牌看详情，等现场聊够了再打开完整报告。</p>
+              <p>你可以继续讲这两张牌、点卡牌看详情，等现场聊够了再打开完整报告。</p>
             </div>
             <button className="primary-button" type="button" onClick={() => setPhase("resolved")}>
               <Eye size={18} />
@@ -313,59 +309,56 @@ export default function ReadingExperiencePage({ cards }: Props) {
         ) : null}
 
         {interpretation && isReporting ? (
-          <section className="reading-report-panel">
-            <div className="reading-report-head">
-              <div className="reading-report-title">
-                <span className="eyebrow">Divination Report</span>
-                <h2>这次抽卡给你的报告</h2>
+          <section className="reading-report-shell">
+            <header className="reading-report-floating-title">
+              <span className="eyebrow">你的问题</span>
+              <h2>{question || "这次你什么都没问，但命运还是给了你一点脸色。"}</h2>
+            </header>
+
+            <div className="reading-report-panel">
+              <div className="reading-report-head">
                 <div className="reading-report-meta">
-                  {question ? <p className="reading-report-question-chip">问题：{question}</p> : null}
                   {provider ? <p className="reading-provider-note">来源：{provider === "configured-ai" ? "已配置 AI 接口" : "本地兜底解读"}</p> : null}
                 </div>
               </div>
-            </div>
 
-            <article className="reading-report-summary">
-              <span className="reading-report-kicker">一句话评语</span>
-              <p>{interpretation.summary}</p>
-            </article>
-
-            <div className="reading-report-cards">
-              {interpretation.cardReadings.map((item) => (
-                <article key={`${item.position}-${item.cardName}`} className="reading-report-card">
-                  <div className="reading-report-card-head">
-                    <span>{item.position}</span>
-                    <small>{item.orientation}</small>
-                  </div>
-                  <h3>{item.cardName}</h3>
-                  <p>{item.reading}</p>
-                </article>
-              ))}
-            </div>
-
-            <div className="reading-report-lower">
-              <article className="reading-report-analysis">
-                <span className="reading-report-kicker">问题详解</span>
-                <p>{interpretation.analysis}</p>
+              <article className="reading-report-summary">
+                <span className="reading-report-kicker">一句话评语</span>
+                <p>{interpretation.summary}</p>
               </article>
 
-              <div className="reading-report-side">
-                <article className="reading-report-question-card">
-                  <span className="reading-report-kicker">你的问题</span>
-                  <p>{question || "这次你什么都没问，但命运还是给了你一点脸色。"}</p>
+              <div className="reading-report-cards">
+                {interpretation.cardReadings.map((item) => (
+                  <article key={`${item.position}-${item.cardName}`} className="reading-report-card">
+                    <div className="reading-report-card-head">
+                      <span>{item.position}</span>
+                      <small>{item.orientation}</small>
+                    </div>
+                    <h3>{item.cardName}</h3>
+                    <p>{item.reading}</p>
+                  </article>
+                ))}
+              </div>
+
+              <div className="reading-report-lower">
+                <article className="reading-report-analysis">
+                  <span className="reading-report-kicker">综合分析</span>
+                  <p>{interpretation.analysis}</p>
                 </article>
 
-                <article className="reading-report-lockup">
-                  <span className="reading-report-kicker">搞笑行动</span>
-                  <p>系统已经生成了一条很不正经的行动建议。大概率适合截图发群，也大概率不适合真的照做。</p>
-                  <div className="reading-report-lockup-mask" aria-hidden="true">
-                    <span>已生成 · 等待 1 元解锁</span>
-                  </div>
-                  <button className="ghost-button wide" type="button" onClick={openPaywall}>
-                    <LockKeyhole size={16} />
-                    解锁洞察
-                  </button>
-                </article>
+                <div className="reading-report-side">
+                  <article className="reading-report-lockup">
+                    <span className="reading-report-kicker">搞笑行动</span>
+                    <p>系统已经生成了一条很不正经的行动建议。大概率适合截图发群，也大概率不适合真的照做。</p>
+                    <div className="reading-report-lockup-mask" aria-hidden="true">
+                      <span>已生成 · 等待 1 元解锁</span>
+                    </div>
+                    <button className="ghost-button wide" type="button" onClick={openPaywall}>
+                      <LockKeyhole size={16} />
+                      解锁洞察
+                    </button>
+                  </article>
+                </div>
               </div>
             </div>
           </section>
@@ -391,7 +384,7 @@ export default function ReadingExperiencePage({ cards }: Props) {
             </button>
             <span className="eyebrow">Question Portal</span>
             <h2>把你想问的事说出来。</h2>
-            <p>输入问题后点击“获取 AI 的瞎洞察”。从你点下去那一刻，系统就会立刻抽三张牌并偷偷请求 AI。</p>
+            <p>输入问题后点击“获取 AI 的瞎洞察”。从你点下去那一刻，系统就会立刻抽两张牌并偷偷请求 AI。</p>
             <textarea
               value={draftQuestion}
               onChange={(event) => setDraftQuestion(event.target.value)}

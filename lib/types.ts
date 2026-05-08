@@ -25,7 +25,7 @@ export type TarotCard = {
 export type CardDraw = {
   card: TarotCard;
   orientation: Orientation;
-  position: "现状" | "阻力" | "建议";
+  position: "症状" | "解法";
 };
 
 export type ReadingCardInterpretation = {

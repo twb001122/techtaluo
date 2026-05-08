@@ -6,9 +6,9 @@ describe("buildReadingFlowModel", () => {
     const model = buildReadingFlowModel();
 
     expect(model.deckBackCount).toBe(10);
-    expect(model.faceCardCount).toBe(3);
+    expect(model.faceCardCount).toBe(2);
     expect(model.requestStartsAt).toBe("question_submit");
-    expect(model.faceRevealDelaysMs).toEqual([2900, 3560, 4220]);
+    expect(model.faceRevealDelaysMs).toEqual([2900, 3720]);
     expect(model.reportRevealOffsetMs).toBe(840);
   });
 });

@@ -20,6 +20,15 @@ type LegacyInterpretation = {
 type FlexibleInterpretation = Partial<ReadingInterpretation> & {
   funnyAction?: string;
   "搞笑行动"?: string;
+  action?: string;
+  "行动建议"?: string;
+};
+
+type LooseCardReading = {
+  position?: unknown;
+  cardName?: unknown;
+  orientation?: unknown;
+  reading?: unknown;
 };
 
 export type AiInterpretationDebug = {
@@ -42,6 +51,9 @@ const DEFAULT_PAYWALL_ROASTS: ReadingInterpretation["paywallRoasts"] = {
   paid: "1块钱就想了解命运？也行，至少你愿意为自己的精神状态出一点预算。",
   unpaid: "1块钱都不花就想了解命运？你的财务策略和感情策略一样，主打一个再看看。"
 };
+
+const readingPositions: CardDraw["position"][] = ["症状", "解法"];
+const legacyPositions = ["现状", "阻力", "建议"];
 
 const logAiDebug = (message: string, details?: Record<string, unknown>) => {
   console.warn("[ai-interpretation]", message, details ?? {});
@@ -120,11 +132,11 @@ export const isValidInterpretation = (value: ReadingInterpretation | null): valu
     value &&
       typeof value.summary === "string" &&
       Array.isArray(value.cardReadings) &&
-      value.cardReadings.length === 3 &&
+      value.cardReadings.length === readingPositions.length &&
       value.cardReadings.every(
         (item) =>
           item &&
-          (item.position === "现状" || item.position === "阻力" || item.position === "建议") &&
+          readingPositions.includes(item.position) &&
           typeof item.cardName === "string" &&
           (item.orientation === "正位" || item.orientation === "逆位") &&
           typeof item.reading === "string"
@@ -137,38 +149,30 @@ export const isValidInterpretation = (value: ReadingInterpretation | null): valu
   );
 };
 
-const hasValidCardReadings = (value: unknown): value is ReadingInterpretation["cardReadings"] => {
+const hasUsableCardReadings = (value: unknown): value is LooseCardReading[] => {
   return Boolean(
     Array.isArray(value) &&
-      value.length === 3 &&
+      value.length >= readingPositions.length &&
       value.every(
         (item) =>
           item &&
           typeof item === "object" &&
-          ((item as ReadingInterpretation["cardReadings"][number]).position === "现状" ||
-            (item as ReadingInterpretation["cardReadings"][number]).position === "阻力" ||
-            (item as ReadingInterpretation["cardReadings"][number]).position === "建议") &&
-          typeof (item as ReadingInterpretation["cardReadings"][number]).cardName === "string" &&
-          (((item as ReadingInterpretation["cardReadings"][number]).orientation === "正位") ||
-            (item as ReadingInterpretation["cardReadings"][number]).orientation === "逆位") &&
-          typeof (item as ReadingInterpretation["cardReadings"][number]).reading === "string"
+          typeof (item as LooseCardReading).cardName === "string" &&
+          typeof (item as LooseCardReading).reading === "string"
       )
   );
 };
 
 const isFlexibleInterpretation = (value: unknown): value is FlexibleInterpretation => {
   const candidate = value as FlexibleInterpretation;
-  const actionField = candidate?.insight ?? candidate?.funnyAction ?? candidate?.["搞笑行动"];
+  const actionField = candidate?.insight ?? candidate?.funnyAction ?? candidate?.["搞笑行动"] ?? candidate?.action ?? candidate?.["行动建议"];
   return Boolean(
     value &&
       typeof value === "object" &&
       typeof candidate.summary === "string" &&
-      hasValidCardReadings(candidate.cardReadings) &&
+      hasUsableCardReadings(candidate.cardReadings) &&
       typeof candidate.analysis === "string" &&
-      typeof actionField === "string" &&
-      candidate.paywallRoasts &&
-      typeof candidate.paywallRoasts.paid === "string" &&
-      typeof candidate.paywallRoasts.unpaid === "string"
+      typeof actionField === "string"
   );
 };
 
@@ -178,10 +182,30 @@ const isLegacyInterpretation = (value: unknown): value is LegacyInterpretation =
       typeof value === "object" &&
       typeof (value as LegacyInterpretation).summary === "string" &&
       Array.isArray((value as LegacyInterpretation).cardInsights) &&
-      (value as LegacyInterpretation).cardInsights.length === 3 &&
+      (value as LegacyInterpretation).cardInsights.length >= readingPositions.length &&
       (value as LegacyInterpretation).cardInsights.every((item) => typeof item === "string") &&
       typeof (value as LegacyInterpretation).advancedPreview === "string"
   );
+};
+
+const normalizeCardReadings = (value: LooseCardReading[], draws: CardDraw[]): ReadingInterpretation["cardReadings"] => {
+  return draws.map((draw, index) => {
+    const source = value[index];
+    return {
+      position: draw.position,
+      cardName: typeof source?.cardName === "string" && source.cardName.trim() ? source.cardName : draw.card.name,
+      orientation: source?.orientation === "正位" || source?.orientation === "逆位" ? source.orientation : draw.orientation === "upright" ? "正位" : "逆位",
+      reading: typeof source?.reading === "string" ? source.reading : ""
+    };
+  });
+};
+
+const normalizePaywallRoasts = (value: unknown): ReadingInterpretation["paywallRoasts"] => {
+  const candidate = value as Partial<ReadingInterpretation["paywallRoasts"]> | null;
+  return {
+    paid: typeof candidate?.paid === "string" && candidate.paid.trim() ? candidate.paid : DEFAULT_PAYWALL_ROASTS.paid,
+    unpaid: typeof candidate?.unpaid === "string" && candidate.unpaid.trim() ? candidate.unpaid : DEFAULT_PAYWALL_ROASTS.unpaid
+  };
 };
 
 export const coerceInterpretation = (value: unknown, draws: CardDraw[]): ReadingInterpretation | null => {
@@ -189,13 +213,13 @@ export const coerceInterpretation = (value: unknown, draws: CardDraw[]): Reading
   if (isFlexibleInterpretation(value)) {
     return {
       summary: value.summary as string,
-      cardReadings: value.cardReadings as ReadingInterpretation["cardReadings"],
+      cardReadings: normalizeCardReadings(value.cardReadings as LooseCardReading[], draws),
       analysis: value.analysis as string,
-      insight: (value.insight ?? value.funnyAction ?? value["搞笑行动"]) as string,
-      paywallRoasts: value.paywallRoasts as ReadingInterpretation["paywallRoasts"]
+      insight: (value.insight ?? value.funnyAction ?? value["搞笑行动"] ?? value.action ?? value["行动建议"]) as string,
+      paywallRoasts: normalizePaywallRoasts(value.paywallRoasts)
     };
   }
-  if (!isLegacyInterpretation(value) || draws.length !== 3) return null;
+  if (!isLegacyInterpretation(value) || draws.length !== readingPositions.length) return null;
 
   return {
     summary: value.summary,
@@ -228,13 +252,14 @@ export const renderPromptTemplate = (template: string, question: string, draws: 
 };
 
 export const buildConfiguredAiRequestBody = (config: AiConfig, question: string, draws: CardDraw[]) => {
+  const thinkingEnabled = config.thinkingEnabled !== false;
   return {
     model: config.modelId,
     temperature: 0.8,
     thinking: {
-      type: config.thinkingEnabled === false ? "disabled" : "enabled"
+      type: thinkingEnabled ? "enabled" : "disabled"
     },
-    reasoning_effort: normalizeAiReasoningEffort(config.reasoningEffort),
+    ...(thinkingEnabled ? { reasoning_effort: normalizeAiReasoningEffort(config.reasoningEffort) } : {}),
     messages: [
       {
         role: "system",
@@ -253,11 +278,18 @@ export async function attemptConfiguredAiInterpretation(
   draws: CardDraw[],
   config: AiConfig
 ): Promise<{ interpretation: ReadingInterpretation | null; debug: AiInterpretationDebug }> {
-  if (!config.enabled || !config.baseUrl || !config.apiKey || !config.modelId || draws.length !== 3) {
+  if (!config.enabled || !config.baseUrl || !config.apiKey || !config.modelId || draws.length !== readingPositions.length) {
+    const missingParts = [
+      !config.enabled ? "自定义 AI 解读未启用" : "",
+      !config.baseUrl ? "Base URL 为空" : "",
+      !config.apiKey ? "API Key 为空" : "",
+      !config.modelId ? "Model ID 为空" : "",
+      draws.length !== readingPositions.length ? `抽牌数量是 ${draws.length}，不是 ${readingPositions.length}` : ""
+    ].filter(Boolean);
     const debug: AiInterpretationDebug = {
       ok: false,
       reason: "config_incomplete",
-      message: "AI 配置不完整或抽牌数量不是 3 张。",
+      message: missingParts.join("；") || "AI 配置不完整。",
       model: config.modelId || undefined,
       detail: JSON.stringify({
         enabled: config.enabled,
@@ -267,12 +299,13 @@ export async function attemptConfiguredAiInterpretation(
         drawCount: draws.length
       })
     };
-    logAiDebug("Skipped configured AI because config is incomplete", {
+    logAiDebug("Skipped configured AI because config is incomplete or disabled", {
       enabled: config.enabled,
       hasBaseUrl: Boolean(config.baseUrl),
       hasApiKey: Boolean(config.apiKey),
       hasModelId: Boolean(config.modelId),
-      drawCount: draws.length
+      drawCount: draws.length,
+      missingParts
     });
     return { interpretation: null, debug };
   }
